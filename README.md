@@ -8,7 +8,7 @@
 
 ## Motivation: to what extent LLMs possess intelligence? 
 
-[Geoffrey Hinton endorsed the legislation of SB 1047](https://x.com/geoffreyhinton/status/1833618540714217826), the strict AI safety bill, because he thinks that LLMs are actually reasoning and understanding. But [Yann LeCun criticized that Hinton's premature worries are originated from the overestimation of LLMs intelligence](https://x.com/ylecun/status/1833964689686225233) in [prediction, planning, common sense etc.](https://x.com/ylecun/status/1728496457601183865}. ) Obviously, this longlasting debate on AI intelligence directly impacts our understanding of AI trustworthiness and regulation.
+[Geoffrey Hinton endorsed the legislation of SB 1047](https://x.com/geoffreyhinton/status/1833618540714217826), the strict AI safety bill, because he thinks that LLMs are actually reasoning and understanding. But [Yann LeCun criticized that Hinton's premature worries are originated from the overestimation of LLMs intelligence](https://x.com/ylecun/status/1833964689686225233) in [prediction, planning, common sense etc.](https://x.com/ylecun/status/1728496457601183865) Obviously, this longlasting debate on AI intelligence directly impacts our understanding of AI trustworthiness and regulation.
 
 Lots of studies explore this question from various aspects such as reasoning, planning, cognitive flexibility, self cognition etc. These angles, however, seem to be interconnected in certain under-explained way related to epistemology of AI systems. So we aim to clarify this enigma from the lens of cognitive science and evaluate the general process of intelligence underlying above aspects.
 
