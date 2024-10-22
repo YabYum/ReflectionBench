@@ -86,6 +86,17 @@ Reflection-Bench involves 7 tasks corresponding to different cognitive elements 
 
 ## Paper
 
-For detailed information about Reflection-Bench, please read [our papaer]()!
+For detailed information about Reflection-Bench, please read [our papaer](https://arxiv.org/pdf/2410.16270)!
 
-You can cite Reflection-Bench as
+You can cite Reflection-Bench as:
+```
+@misc{li2024reflectionbenchprobingaiintelligence,
+      title={Reflection-Bench: probing AI intelligence with reflection}, 
+      author={Lingyu Li and Yixu Wang and Haiquan Zhao and Shuqi Kong and Yan Teng and Chunbo Li and Yingchun Wang},
+      year={2024},
+      eprint={2410.16270},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2410.16270}, 
+}
+```
