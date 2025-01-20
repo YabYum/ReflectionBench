@@ -1,56 +1,52 @@
 import numpy as np
 import time
+from utils.extractor import EXTRACTOR
+from utils.subject import Subject
+from tqdm import tqdm
+from scorer.metaprt_scorer import METAPRTSCORER
 
 class MetaPRT:
-    def __init__(self, client):
-        self.client = client
 
-    def decision(self, model_name, instruction, conversation_history=None):
-        role_sys = 'user' if model_name in ["o1-preview", "o1-mini"] else "system"
-        if conversation_history is None:
-            conversation_history = [{"role": role_sys, "content": "You are playing a two-armed bandit game. Each time you need to choose between the right arm (AAA) or the left arm (BBB). You will receive a feedback (0 or 1) based on your choice. Your goal is to maximize the total reward. Respond only 'AAA' or 'BBB' without outputing anything else. keep performing the task until the end of the test."}]
+    def __init__(self, key_subject, url_subject, model_name, config, COT=None):
 
-        conversation_history.append({"role": "user", "content": instruction})
+        self.extractor = EXTRACTOR(task="meta probability reversal task_extractor")
+        self.subject = Subject(key=key_subject, url=url_subject, task="meta probability reversal task", model=model_name)
+        self.p = config['metaprt']['p']
+        self.sessions = config['metaprt']['sessions']
+        self.trials = config['metaprt']['trials']
+        self.interval_1 = config['metaprt']['interval_1']
+        self.interval_2 = config['metaprt']['interval_2']
+        self.model = model_name
+        if COT == None:
+            self.cot_instruction = ""
+        elif COT == True:
+            self.cot_instruction = "let's think step by step."   
+        elif COT == "Direct":
+            self.cot_instruction = "respond only with your choice directly without outputing any other infomation or analysis. "
 
-        completion = self.client.chat.completions.create(
-            model=model_name,
-            messages=conversation_history,
-            temperature = 1
-        )
-        
-        reply = completion.choices[0].message.content.replace('\n', '')
-
-        conversation_history.append({"role": "assistant", "content": reply})
-
-        if 'AAA' in reply.upper():
-            return 'AAA', conversation_history
-        elif 'BBB' in reply.upper():
-            return 'BBB', conversation_history
-        else:
-            raise ValueError(f"Invalid response from model: {reply}")
 
     def instruction(self, trail_no, prior_reward):
-        if trail_no == 1:
-            instruction = "This is the first trial, choose one arm please."
-        else:
-            instruction = f"Your previous choice resulted in a reward of {prior_reward}. This is trial NO. {trail_no}. Please choose the option you think is best."
 
-        return instruction
+        instruction = "This is the first trial, choose one arm please." if trail_no == 1 else f"Your previous choice resulted in a reward of {prior_reward}. This is trial number {trail_no}. Please choose the option you think is best. "
 
-    def get_reward(self, side, p):
-        q = 1 - p
+        return instruction + self.cot_instruction
+
+    def get_reward(self, side, prob):
+        q = 1 - prob
         if side == 'AAA':
-            reward = np.random.binomial(n=1, p=p, size=1)[0] # AAA for right, therefore p is the probability of getting reward of right arm
+            reward = np.random.binomial(n=1, p=prob, size=1)[0] # AAA for right, therefore p is the probability of getting reward of right arm
         elif side == 'BBB':
             reward = np.random.binomial(n=1, p= q, size=1)[0] # BBB for left
         
         return reward
 
-    def metaprt(self, model_name, trials, p, interval_1, interval_2):
+    def metaprt(self, trials, interval_1, interval_2, pbar=None):
+
         conversation = None
         outcomes = {}
         reward = 0
         half_trials = trials // 2
+        prob = self.p
         
         for i in range(trials):
             try:
@@ -61,29 +57,58 @@ class MetaPRT:
                 else:
                     interval = interval_2
                     mark = i - half_trials
+
+                group = mark // interval
+
             
                 if i>0 and mark%interval == 0: 
-                    p=1-p
+                    prob= 1-prob
+                    reverse = True
+                else:
+                    prob = prob
+                    reverse = False
 
                 trial_no = i + 1
-                inst = self.instruction(trial_no, reward)
-                decision, conversation = self.decision(model_name, inst, conversation)
-                reward = self.get_reward(decision, p)
-                outcomes[trial_no] = {'decision': decision, 'reward': reward}
+                instruction = self.instruction(trial_no, reward)
+                reply, conversation = self.subject.conversation(instruction, conversation)
+                decision = self.extractor.extraction(reply)
+                reward = self.get_reward(decision, prob)
+                outcomes[i] = {'model reply': reply, 'decision': decision, 'reward': reward, 'Reverse': reverse}
 
             except (RuntimeError, ValueError) as e:
                 print(f"Error in trial {trial_no}: {str(e)}. Skipping this trial.")
                 outcomes[i] = {'decision': 'ERROR', 'reward': None}
+            
+            if pbar:
+                pbar.update(1)
             time.sleep(0)
+            #print(outcomes)
 
         return outcomes, conversation
 
 
-    def test_metaprt(self, model_name, trials, p, sessions, interval_1, interval_2):
+    def test_metaprt(self):
         all_sessions_outcomes = {}
-        conversations = []
-        for session in range(sessions):
-            outcomes, conversation = self.metaprt(model_name, trials,p, interval_1, interval_2)
-            all_sessions_outcomes[session + 1] = outcomes
-            conversations.append(conversation)
+        conversations = {}
+        total_trials = self.trials * self.sessions
+
+        with tqdm (total=total_trials, desc='Testing Meta-Multi Bandit Task') as pbar:
+            for session in range(self.sessions):
+                outcomes, conversation = self.metaprt(self.trials, self.interval_1, self.interval_2, pbar)
+                all_sessions_outcomes[session] = outcomes
+                conversations[session] = conversation
         return all_sessions_outcomes, conversations
+    
+    def evaluate_metaprt(self):
+        results_metaprt, conversations_metaprt = self.test_metaprt()
+        try:
+            metaprt_scorer = METAPRTSCORER(results_metaprt, self.sessions, self.trials)
+            score_metaprt = metaprt_scorer.scoring_metaprt()
+            print(f"Score of Meta-Multi Bandit Task of {self.model}: ", score_metaprt)
+                    
+        except Exception as e:
+            print(f"Error occurred: {str(e)}.")
+            score_metaprt = None
+        
+        return results_metaprt, conversations_metaprt, score_metaprt
+
